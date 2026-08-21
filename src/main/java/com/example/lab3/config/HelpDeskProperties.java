@@ -19,7 +19,14 @@ public record HelpDeskProperties(
     /** 검색(RAG) 파라미터 */
     public record Rag(
             @DefaultValue("5") int topK,
-            @DefaultValue("0.62") double threshold,
+            /**
+             * 유사도 임계값. <b>0.62 를 기본값으로 두면 안 된다</b> — 실측에서 한국어 질의 +
+             * text-embedding-3-small 의 코사인 유사도는 0.2~0.5 대에 형성돼, 관련 문서조차
+             * 0.5 를 넘기 어렵다. 0.62 로 두면 검색이 전멸한다(실제로 0건이었다).
+             * application.yaml 이 같은 값을 다시 지정하지만, 설정을 안 준 환경에서도
+             * 동작해야 하므로 코드 기본값도 실측치에 맞춘다.
+             */
+            @DefaultValue("0.35") double threshold,
             @DefaultValue("800") int chunkSize,
             @DefaultValue("350") int minChunkSizeChars,
             /** 하이브리드 검색(벡터+BM25) 사용 여부. 끄면 벡터 단독으로 돌아간다 — 비교 실험용. */
