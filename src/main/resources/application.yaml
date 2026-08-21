@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: lab3
+
+  ai:
+    openai:
+      # 키는 소스에 넣지 않는다.  export OPENAI_API_KEY="sk-..."
+      api-key: ${OPENAI_API_KEY:not-set}
+      chat:
+        options:
+          model: gpt-5.6-sol
+          # gpt-5.6-sol 은 추론 모델이라 temperature 를 받지 않는다.
+          # 0.2 를 그대로 보내면 OpenAI 가 400 을 주고, 컨트롤러는 그걸 500 으로 올린다.
+          # Chat Completions + function tools 는 reasoning_effort=none 만 허용한다.
+          # (생략하면 기본값 medium 이라 도구 호출도 400 이 난다.)
+          reasoning-effort: none
+      embedding:
+        options:
+          model: text-embedding-3-small
+
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        dimensions: 1536
+
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
+      # 운영에서는 프롬프트 원문 로깅을 반드시 끈다(개인정보가 그대로 쌓인다).
+      observations:
+        log-prompt: false
+      client:
+        observations:
+          log-prompt: false
+
+# ── Phase 1 — 코드에 상수를 남기지 않는다 ──────────────────
+helpdesk:
+  rag:
+    top-k: 5
+    # 실측: 한국어 질의 + text-embedding-3-small 의 코사인 유사도는 0.2~0.5 대에 형성된다.
+    # 관련 문서조차 0.5 를 넘기 어려워, 0.62 로 두면 검색이 전멸한다(실제로 0건이었다).
+    threshold: 0.35
+    chunk-size: 800
+    min-chunk-size-chars: 350
+  memory:
+    max-messages: 20
+  safety:
+    sensitive-words:
+      - 주민등록번호
+      - 카드번호
+      - 계좌번호
+    failure-response: 민감정보가 포함된 요청은 처리할 수 없습니다.
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.example.lab3: DEBUG
+
+# ── API 문서 · Swagger UI ──────────────────────────────────
+#   화면 http://localhost:8080/swagger-ui.html   문서 /v3/api-docs
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+    display-request-duration: true
+    doc-expansion: none

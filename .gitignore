@@ -1,0 +1,74 @@
+### 빌드 산출물 ─────────────────────────────────────────────
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+out/
+bin/
+!**/src/main/**/out/
+!**/src/test/**/out/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IDE ─────────────────────────────────────────────────────
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+### Eclipse / STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+### NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### OS ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+### 비밀값 ──────────────────────────────────────────────────
+# OPENAI_API_KEY 는 환경변수로만 넘긴다. 파일로 두면 언젠가 커밋된다.
+.env
+.env.*
+*.pem
+*.key
+!gradle/wrapper/*.properties
+**/application-secret*.yaml
+**/application-secret*.yml
+**/application-local-*.yaml
+
+### 과제 산출물 ─────────────────────────────────────────────
+# 강의 제출용 보고서와 실행 기록. 코드 저장소에는 필요 없다.
+# README.md 는 저장소 첫 화면이므로 제외하지 않는다.
+BONUS.md
+RUN_REPORT.md
+HELP.md
+REDTEAM.md
+2026-*_SKALA_*.md
+SpringAI_Day*.md
+
+### 캡처 이미지 ─────────────────────────────────────────────
+# 보고서를 빼면 이 이미지들을 참조하는 문서가 없어 고아가 된다.
+# 합쳐서 8MB 라, 남겨 두면 클론할 때마다 그만큼을 받는다.
+images/
+screenshots/
+uishots/
+
+### 작업용 임시물 ───────────────────────────────────────────
+tmp/
+*.log
+logs/
+
+### 주의 ────────────────────────────────────────────────────
+# src/main/resources/docs/*.md 는 제외하지 않는다.
+# 앱이 classpath 에서 읽는 RAG 원본 문서이며, 빠지면 인제스트가 0건이 된다.

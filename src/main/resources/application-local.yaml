@@ -1,0 +1,16 @@
+# local 프로필 — Docker 없이 띄운다.
+#   ./gradlew bootRun --args='--spring.profiles.active=local'
+#
+# 벡터 저장소와 대화 메모리를 모두 인메모리로 바꾼다(LocalStoreConfig).
+# 재시작하면 인제스트한 문서와 대화 이력이 사라지므로
+# /api/admin/ingest 를 다시 호출해야 한다.
+spring:
+  docker:
+    compose:
+      enabled: false
+  autoconfigure:
+    exclude:
+      # DataSource 가 없으므로 이들을 끄지 않으면 빈 등록이 충돌한다
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      - org.springframework.ai.model.chat.memory.repository.jdbc.autoconfigure.JdbcChatMemoryRepositoryAutoConfiguration

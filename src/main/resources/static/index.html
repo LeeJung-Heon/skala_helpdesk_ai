@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SKALA HelpDesk AI</title>
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     Chat A.I+ 스타일 — 라벤더 바탕 위에 떠 있는 흰 카드 셸.
+
+     말풍선을 쓰지 않는다. 답변이 길어질수록 말풍선은 읽기를 방해하고,
+     이 화면의 답변은 규정 인용이라 대부분 길다.
+
+     아이콘은 모두 인라인 SVG 다. 이모지는 OS 마다 모양·크기·색이 달라
+     같은 화면이 기기마다 다르게 보인다 — 시안을 맞추는 일과 정면으로 충돌한다.
+     ═══════════════════════════════════════════════════════════ */
+  :root {
+    --page:#c9d4f5;            /* 바깥 라벤더 */
+    --surface:#ffffff;
+    --chat:#f6f8fd;            /* 대화 영역 바탕 */
+    --ink:#0f1420;
+    --black:#101420;           /* 시안의 검은 원형 버튼 */
+    --body:#2c3444;
+    --muted:#7a8296;
+    --faint:#a3aab9;
+    --line:#edeff6;
+    --line2:#e3e7f2;
+    --indigo:#4e5ae8;
+    --indigo-dark:#3f4ad4;
+    --indigo-soft:#e5e8fc;
+    --ok:#12a150;
+    --ok-soft:#e6f6ed;
+    --warn:#b4690e;
+    --warn-soft:#fdf1e0;
+    --shell-r:26px;
+    --thread:800px;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    margin:0; background:var(--page); color:var(--ink);
+    font-family:'Pretendard','Apple SD Gothic Neo','Poppins','Noto Sans KR',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:22px; overflow:hidden;
+  }
+
+  /* 아이콘 — 선 굵기와 끝 처리를 시안(2px · 둥근 끝)에 맞춘다 */
+  .i { width:16px; height:16px; flex:none; display:block;
+       fill:none; stroke:currentColor; stroke-width:2;
+       stroke-linecap:round; stroke-linejoin:round; }
+  .i .solid { fill:currentColor; stroke:none; }
+  .sprite { display:none; }
+
+  .app {
+    height:100%; background:var(--surface); border-radius:var(--shell-r);
+    box-shadow:0 24px 60px rgba(45,60,120,.18);
+    display:grid; grid-template-columns:262px minmax(0,1fr) 330px;
+    overflow:hidden;
+  }
+
+  /* ── 왼쪽 사이드바 ─────────────────────────────── */
+  .side { display:flex; flex-direction:column; padding:22px 18px 18px;
+          border-right:1px solid var(--line); min-height:0; }
+  .brand { font-size:19px; font-weight:700; letter-spacing:.14em; margin:2px 4px 20px; }
+  .brand span { color:var(--indigo); }
+
+  /* 시안의 두 상태를 그대로 쓴다.
+     기본  : [＋ 새 대화 알약]  [검은 원형 검색]
+     검색중: [＋ 인디고 원형]   [검은 검색 알약] */
+  .newrow { display:flex; gap:9px; margin-bottom:20px; align-items:center; }
+  .newchat { flex:1; background:var(--indigo); color:#fff; border:0; border-radius:999px;
+             height:48px; padding:0 18px; font-size:14px; font-weight:600; cursor:pointer;
+             font-family:inherit; display:flex; align-items:center; justify-content:center; gap:9px;
+             box-shadow:0 6px 16px rgba(78,90,232,.28); transition:flex-basis .16s ease; }
+  .newchat:hover { background:var(--indigo-dark); }
+  .newchat .i { width:19px; height:19px; }
+
+  .circlebtn { width:48px; height:48px; border-radius:50%; border:0; cursor:pointer; flex:none;
+               background:var(--black); color:#fff;
+               display:flex; align-items:center; justify-content:center; }
+  .circlebtn .i { width:19px; height:19px; }
+  .circlebtn:hover { background:#232838; }
+
+  .searchbox { display:none; flex:1; min-width:0; height:48px; background:var(--black);
+               border-radius:999px; align-items:center; gap:10px; padding:0 17px; color:#fff; }
+  .searchbox .i { width:18px; height:18px; }
+  .searchbox button { background:none; border:0; padding:0; color:#fff; cursor:pointer;
+                      display:flex; }
+  .searchbox input { flex:1; min-width:0; background:none; border:0; outline:none; color:#fff;
+                     font-family:inherit; font-size:13.5px; }
+  .searchbox input::placeholder { color:#767e90; }
+  .newrow.searching .newchat { flex:0 0 48px; width:48px; padding:0; }
+  .newrow.searching .newchat .label { display:none; }
+  .newrow.searching .searchbox { display:flex; }
+  .newrow.searching #searchBtn { display:none; }
+
+  .sectionhead { display:flex; align-items:center; padding:0 6px 8px;
+                 font-size:12px; color:var(--muted); }
+  .sectionhead .act { margin-left:auto; color:var(--indigo); font-weight:600; cursor:pointer;
+                      background:none; border:0; font-size:12px; font-family:inherit; }
+
+  .convs { flex:1; overflow-y:auto; margin:0 -4px; padding:0 4px; min-height:0; }
+  .conv { display:flex; align-items:center; gap:10px; padding:10px 11px; border-radius:11px;
+          font-size:13px; color:var(--body); cursor:pointer; border:0; background:none;
+          width:100%; text-align:left; font-family:inherit; line-height:1.35; }
+  .conv:hover { background:#f4f6fc; }
+  .conv.active { background:var(--indigo-soft); color:var(--indigo); font-weight:600; }
+  .conv .i { width:15px; height:15px; opacity:.55; }
+  .conv.active .i { opacity:1; }
+  .conv .t { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .convs .none { padding:14px 8px; }
+
+  .divider { margin:14px 6px 8px; font-size:11.5px; color:var(--faint); }
+
+  .sidebox { border:1px solid var(--line2); border-radius:13px; padding:0 12px; height:46px;
+             display:flex; align-items:center; gap:10px; font-size:12.5px; margin-top:9px; }
+  .sidebox .lab { color:var(--muted); flex:none; }
+  .sidebox input, .sidebox select {
+    flex:1; min-width:0; border:0; background:none; font-family:inherit; font-size:12.5px;
+    color:var(--ink); outline:none; }
+  .avatar { width:30px; height:30px; border-radius:50%; flex:none; display:flex;
+            align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
+            background:var(--indigo-soft); color:var(--indigo); }
+
+  /* 스트리밍 토글 — 검은 원형 자리는 시안대로 검색이 쓰므로 설정으로 내렸다 */
+  .switch { margin-left:auto; width:38px; height:22px; border-radius:999px; border:0;
+            background:#dfe3ee; cursor:pointer; padding:3px; display:flex; }
+  .switch i { width:16px; height:16px; border-radius:50%; background:#fff; display:block;
+              transition:transform .16s ease; box-shadow:0 1px 2px rgba(0,0,0,.2); }
+  .switch[aria-pressed="true"] { background:var(--indigo); }
+  .switch[aria-pressed="true"] i { transform:translateX(16px); }
+
+  /* ── 가운데 대화 ───────────────────────────────── */
+  main { position:relative; background:var(--chat); min-width:0; min-height:0;
+         display:flex; flex-direction:column; }
+  #log { flex:1; overflow-y:auto; padding:26px 28px 0; }
+  .thread { width:100%; max-width:var(--thread); margin:0 auto; padding-bottom:132px; }
+
+  .turn { padding:18px 0; }
+  /* 구분선은 새 질문 앞에만 둔다 — 질문·답변 한 쌍이 한 덩어리로 읽힌다 */
+  .turn.user:not(:first-child) { border-top:1px solid var(--line2); margin-top:4px; }
+  .turn .who { display:flex; align-items:center; gap:10px; }
+  .turn .who .name { font-size:12.5px; font-weight:600; color:var(--indigo); }
+  .turn.user .who .name { color:var(--ink); font-weight:500; font-size:13.5px;
+                          white-space:normal; line-height:1.5; }
+  .av { width:26px; height:26px; border-radius:50%; flex:none; display:flex;
+        align-items:center; justify-content:center; font-size:10.5px; font-weight:700; }
+  .av.me { background:#dfe4f7; color:#3c4763; }
+  .av.ai { background:var(--indigo); color:#fff; }
+  .av.ai .i { width:15px; height:15px; }
+  .text { font-size:14px; line-height:1.72; color:var(--body); white-space:pre-wrap;
+          word-break:break-word; margin-top:9px; padding-left:36px; }
+  .text strong { color:var(--ink); font-weight:700; }
+
+  .meta { margin:11px 0 0 36px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .chip { font-size:11.5px; padding:4px 10px; border-radius:999px; background:#fff;
+          border:1px solid var(--line2); color:var(--muted);
+          display:inline-flex; align-items:center; gap:5px; }
+  .chip .i { width:13px; height:13px; }
+  .chip.src { color:var(--indigo); border-color:#d7dcfb; cursor:pointer; }
+  .chip.src:hover { border-color:var(--indigo); }
+  .chip.src.open { background:var(--indigo-soft); border-color:var(--indigo); }
+  .chip.tool { color:var(--ok); border-color:#c9e9d7; background:var(--ok-soft); }
+  .chip.blocked { color:var(--warn); border-color:#f0dcbe; background:var(--warn-soft); }
+
+  .evidence { margin:10px 0 0 36px; border:1px solid var(--line2); border-radius:14px;
+              background:#fff; overflow:hidden; }
+  .evidence .head { padding:9px 14px; border-bottom:1px solid var(--line);
+                    font-size:11.5px; color:var(--muted);
+                    display:flex; align-items:center; gap:7px; }
+  .evidence .body { padding:13px 15px; font-size:12.6px; line-height:1.8; color:#4a5365;
+                    white-space:pre-wrap; max-height:300px; overflow-y:auto; }
+  .evidence mark { background:#fff2b8; color:#4a3c05; padding:1px 3px; border-radius:4px; }
+  .evidence .none { color:var(--faint); font-style:italic; }
+
+  .empty { text-align:center; padding:14vh 0 0; color:var(--muted); font-size:13.5px;
+           line-height:2; }
+  .empty b { color:var(--ink); font-weight:600; display:block; font-size:15px; margin-bottom:6px; }
+
+  /* 떠 있는 알약 입력창 — 시안처럼 마지막 답변 위에 겹친다 */
+  .fade { position:absolute; left:0; right:0; bottom:0; height:118px; pointer-events:none;
+          background:linear-gradient(to bottom, rgba(246,248,253,0), var(--chat) 62%); }
+  .composer { position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+              width:min(var(--thread), calc(100% - 56px));
+              background:#fff; border-radius:999px; border:1px solid var(--line2);
+              box-shadow:0 12px 30px rgba(45,60,120,.13);
+              display:flex; align-items:center; gap:12px; padding:8px 8px 8px 15px; }
+  .composer .face { width:32px; height:32px; border-radius:50%; flex:none;
+                    background:var(--indigo-soft); color:var(--indigo);
+                    display:flex; align-items:center; justify-content:center; }
+  .composer .face .i { width:17px; height:17px; }
+  #q { flex:1; resize:none; border:0; outline:none; background:none; font-family:inherit;
+       font-size:14px; color:var(--ink); line-height:1.5; padding:8px 0; max-height:110px; }
+  #q::placeholder { color:var(--faint); }
+  #send { width:42px; height:42px; border-radius:50%; border:0; flex:none; cursor:pointer;
+          background:var(--indigo); color:#fff;
+          display:flex; align-items:center; justify-content:center;
+          box-shadow:0 6px 16px rgba(78,90,232,.32); }
+  #send .i { width:18px; height:18px; }
+  #send:hover:not(:disabled) { background:var(--indigo-dark); }
+  #send:disabled { opacity:.45; cursor:not-allowed; }
+
+  /* ── 오른쪽 상태 레일 ──────────────────────────── */
+  aside { background:#fff; border-left:1px solid var(--line);
+          overflow-y:auto; padding:20px 16px 24px;
+          display:flex; flex-direction:column; gap:13px; }
+  /* flex:none 가 없으면 카드가 늘어난 만큼 위 카드가 눌려 버튼·링크가 잘린다. */
+  .card { flex:none; background:#fff; border:1px solid var(--line2); border-radius:16px;
+          box-shadow:0 1px 2px rgba(45,60,120,.04); overflow:hidden; }
+  .card > h2 { margin:0; padding:13px 15px 11px; font-size:12.5px; font-weight:600;
+               display:flex; align-items:center; gap:8px; }
+  .card > h2 .i { width:15px; height:15px; color:var(--indigo); }
+  .card > h2 .count { margin-left:auto; font-weight:500; font-size:11px; color:var(--muted); }
+  .card .body { padding:0 15px 14px; }
+
+  .row { padding:10px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .row:last-child { border-bottom:0; }
+  .row .top { display:flex; align-items:center; gap:7px; }
+  .row .id { font-weight:600; }
+  .row .sub { color:var(--muted); font-size:11.5px; margin-top:4px; line-height:1.6; }
+  /* 방금 바뀐 줄. 잠깐 번쩍이고 끝나면 자리를 비운 사이에 바뀐 것을 놓친다 —
+     그래서 왼쪽 강조선은 다음 갱신까지 남긴다. */
+  .row.changed { background:#f2f4ff; box-shadow:inset 3px 0 0 var(--indigo);
+                 margin:0 -15px; padding-left:15px; padding-right:15px;
+                 animation:flash 1.8s ease-out; }
+  @keyframes flash { 0% { background:#dfe4fd; } 100% { background:#f2f4ff; } }
+  .badge-new { color:var(--indigo); font-size:10.5px; font-weight:600; }
+
+  .state { margin-left:auto; font-size:10.5px; padding:3px 9px; border-radius:999px;
+           border:1px solid var(--line2); color:var(--muted); white-space:nowrap; background:#fafbff; }
+  .state.moving  { color:var(--indigo); border-color:#d7dcfb; background:var(--indigo-soft); }
+  .state.done    { color:var(--ok); border-color:#c9e9d7; background:var(--ok-soft); }
+  .state.prep,
+  .state.pending { color:var(--warn); border-color:#f0dcbe; background:var(--warn-soft); }
+
+  .none { color:var(--faint); font-size:11.5px; padding:10px 0; line-height:1.7; }
+
+  #docList { max-height:280px; overflow-y:auto; }
+  .doc { display:flex; align-items:center; gap:9px; padding:8px 0; font-size:12.5px;
+         border-bottom:1px solid var(--line); cursor:pointer; }
+  .doc:last-of-type { border-bottom:0; }
+  .doc input { accent-color:var(--indigo); width:15px; height:15px; cursor:pointer; flex:none; }
+  .doc .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--body); }
+  .doc .n { margin-left:auto; font-size:10.5px; color:var(--faint); white-space:nowrap; }
+  .doc.on .name { color:var(--ink); }
+  .doc.on .n { color:var(--ok); font-weight:600; }
+  #ingest { width:100%; margin-top:12px; background:var(--indigo); color:#fff; border:0;
+            border-radius:999px; padding:11px; font-size:12.5px; font-weight:600;
+            cursor:pointer; font-family:inherit; }
+  #ingest:hover:not(:disabled) { background:var(--indigo-dark); }
+  #ingest:disabled { opacity:.5; cursor:not-allowed; }
+  .links { display:flex; gap:12px; margin-top:9px; justify-content:center; }
+  .link { background:none; border:0; color:var(--muted); font-size:11.5px; cursor:pointer;
+          padding:0; font-family:inherit; }
+  .link:hover { color:var(--indigo); }
+
+  .dots span { display:inline-block; width:5px; height:5px; margin-right:4px; border-radius:50%;
+               background:var(--faint); animation:b 1.2s infinite; }
+  .dots span:nth-child(2){animation-delay:.2s} .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes b { 0%,60%,100%{opacity:.25} 30%{opacity:1} }
+
+  @media (max-width: 1240px) {
+    body { overflow:auto; padding:12px; }
+    .app { grid-template-columns:1fr; height:auto; }
+    .side { border-right:0; border-bottom:1px solid var(--line); }
+    .convs { max-height:220px; }
+    main { min-height:70vh; }
+    aside { border-left:0; border-top:1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<!-- 아이콘 스프라이트 — 시안의 선 아이콘을 그대로 옮겼다 -->
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <!-- 시안의 돋보기: 손잡이 대신 오른쪽 아래에 작은 점이 붙는다 -->
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="10.5" cy="10.5" r="6.5"/><circle class="solid" cx="17.4" cy="17.4" r="1.7"/>
+  </symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24">
+    <path d="M20 12a8 8 0 0 1-8 8H8.4L4 22.6V16.9A8 8 0 1 1 20 12Z"/>
+  </symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24">
+    <path d="M12 3.2 13.9 9 19.8 11l-5.9 2L12 18.8 10.1 13 4.2 11 10.1 9 12 3.2Z"/>
+  </symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21.5 2.5 10.8 13.2M21.5 2.5l-6.8 19-3.9-8.3-8.3-3.9 19-6.8Z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24">
+    <circle cx="12" cy="8.2" r="3.9"/><path d="M4.6 20.5a7.4 7.4 0 0 1 14.8 0"/>
+  </symbol>
+  <!-- 문서 색인 — 줄이 그어진 문서. 세 권짜리 책 아이콘은 15px 에서 뭉개져 버렸다 -->
+  <symbol id="i-library" viewBox="0 0 24 24">
+    <path d="M6.6 3.4h7L18 7.8v11a1.7 1.7 0 0 1-1.7 1.7H6.6a1.7 1.7 0 0 1-1.7-1.7V5.1a1.7 1.7 0 0 1 1.7-1.7Z"/>
+    <path d="M13.4 3.6V8h4.4M8.2 12.6h6.6M8.2 16.2h4.2"/>
+  </symbol>
+  <symbol id="i-box" viewBox="0 0 24 24">
+    <path d="M20.5 7.8 12 3.2 3.5 7.8v8.4l8.5 4.6 8.5-4.6V7.8Z"/>
+    <path d="m3.5 7.8 8.5 4.6 8.5-4.6M12 12.4v8.4"/>
+  </symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24">
+    <path d="M6 3h12v18l-3-1.8L12 21l-3-1.8L6 21V3Z"/><path d="M9.2 8.5h5.6M9.2 12.5h5.6"/>
+  </symbol>
+  <symbol id="i-file" viewBox="0 0 24 24">
+    <path d="M13.6 3H7.8A1.8 1.8 0 0 0 6 4.8v14.4A1.8 1.8 0 0 0 7.8 21h8.4a1.8 1.8 0 0 0 1.8-1.8V7.4L13.6 3Z"/>
+    <path d="M13.4 3.2v4.4h4.4"/>
+  </symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.2 2.5 4.4 13.6h6.4l-1 7.9 8.8-11.1h-6.4l1-7.9Z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24">
+    <path d="M12 3.2 19 6v5.9c0 4.4-2.9 7.9-7 9.1-4.1-1.2-7-4.7-7-9.1V6l7-2.8Z"/>
+  </symbol>
+</svg>
+
+<div class="app">
+
+  <!-- ── 사이드바 ─────────────────────────────── -->
+  <nav class="side">
+    <div class="brand">SKALA <span>A.I+</span></div>
+
+    <div class="newrow" id="newrow">
+      <button class="newchat" id="reset" title="새 세션으로 대화를 다시 시작합니다">
+        <svg class="i"><use href="#i-plus"/></svg><span class="label">새 대화</span>
+      </button>
+
+      <div class="searchbox">
+        <button id="searchClose" title="검색 닫기"><svg class="i"><use href="#i-search"/></svg></button>
+        <input type="text" id="searchInput" placeholder="질문 검색…" autocomplete="off">
+      </div>
+
+      <button class="circlebtn" id="searchBtn" title="질문 검색">
+        <svg class="i"><use href="#i-search"/></svg>
+      </button>
+    </div>
+
+    <div class="sectionhead">
+      예시 질문
+      <button class="act" id="clearLog">지우기</button>
+    </div>
+
+    <div class="convs" id="convs"></div>
+
+    <div class="divider">설정</div>
+    <label class="sidebox">
+      <span class="lab">세션</span>
+      <input type="text" id="session" value="web">
+    </label>
+    <div class="sidebox">
+      <span class="lab">스트리밍</span>
+      <button class="switch" id="stream" aria-pressed="true" title="스트리밍 응답"><i></i></button>
+    </div>
+    <label class="sidebox">
+      <span class="avatar" id="userAv">U1</span>
+      <select id="user"><option>user1</option><option>user2</option></select>
+    </label>
+  </nav>
+
+  <!-- ── 대화 ─────────────────────────────────── -->
+  <main>
+    <div id="log">
+      <div class="thread" id="thread">
+        <div class="empty" id="empty">
+          <b>오른쪽에서 적재할 규정 문서를 고르고 “선택 주입”을 누르세요.</b>
+          체크한 문서만 색인에 남으므로,<br>문서를 빼면 답이 어떻게 달라지는지 바로 볼 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="fade"></div>
+    <div class="composer">
+      <span class="face"><svg class="i"><use href="#i-user"/></svg></span>
+      <textarea id="q" rows="1" placeholder="무엇이 궁금하신가요?…"></textarea>
+      <button id="send" title="Enter 전송 · Shift+Enter 줄바꿈">
+        <svg class="i"><use href="#i-send"/></svg>
+      </button>
+    </div>
+  </main>
+
+  <!-- ── 상태 레일 ────────────────────────────── -->
+  <aside>
+    <section class="card">
+      <h2><svg class="i"><use href="#i-library"/></svg>문서 색인
+        <span class="count" id="docCount">—</span></h2>
+      <div class="body">
+        <div id="docList"><div class="none">문서 목록을 불러오는 중…</div></div>
+        <button id="ingest">선택 주입</button>
+        <div class="links">
+          <button class="link" id="selAll">전체 선택</button>
+          <button class="link" id="selNone">전체 해제</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><svg class="i"><use href="#i-box"/></svg>주문 내역
+        <span class="count" id="orderCount">—</span></h2>
+      <div class="body" id="orderList"><div class="none">불러오는 중…</div></div>
+    </section>
+
+    <section class="card">
+      <h2><svg class="i"><use href="#i-receipt"/></svg>신청 상태
+        <span class="count" id="ticketCount">—</span></h2>
+      <div class="body" id="ticketList"><div class="none">불러오는 중…</div></div>
+    </section>
+  </aside>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const log = $('#log');
+const thread = $('#thread');
+
+const SAMPLES = [
+  '단순 변심 반품은 며칠 이내인가요?',
+  '제 주문 12345는 지금 어디예요?',
+  '그럼 그거 반품 돼요?',
+  '환불로 접수해 주세요',
+  '배송 조회는 어디에서 하나요?',
+  '이어폰 무상 보증 기간은?',
+  '무이자 할부 되나요?',
+  '휴면 계정은 언제 전환되나요?',
+];
+
+function headers() {
+  return { 'Content-Type': 'application/json', 'X-User-Id': $('#user').value };
+}
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** 스프라이트에서 아이콘 하나를 만든다. */
+function icon(id) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'i');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', '#i-' + id);
+  svg.appendChild(use);
+  return svg;
+}
+const iconHtml = id => '<svg class="i"><use href="#i-' + id + '"/></svg>';
+
+/** HTML 이스케이프 후 **굵게** 만 반영한다. 이스케이프가 먼저라 주입 위험이 없다. */
+function render(el, text) {
+  el.innerHTML = esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+}
+
+/* ── 사이드바 예시 질문 + 검색 ──────────────────── */
+function paintSamples(filter) {
+  const q = (filter || '').trim();
+  const list = q ? SAMPLES.filter(s => s.includes(q)) : SAMPLES;
+  $('#convs').innerHTML = list.length
+    ? list.map(s => '<button class="conv" data-q="' + esc(s) + '">'
+        + iconHtml('chat') + '<span class="t">' + esc(s) + '</span></button>').join('')
+    : '<div class="none">일치하는 질문이 없습니다.</div>';
+}
+
+$('#convs').addEventListener('click', e => {
+  const b = e.target.closest('.conv');
+  if (!b) return;
+  document.querySelectorAll('.conv').forEach(c => c.classList.remove('active'));
+  b.classList.add('active');
+  send(b.dataset.q);
+});
+
+$('#searchBtn').onclick = () => {
+  $('#newrow').classList.add('searching');
+  $('#searchInput').focus();
+};
+function closeSearch() {
+  $('#newrow').classList.remove('searching');
+  $('#searchInput').value = '';
+  paintSamples();
+}
+$('#searchClose').onclick = closeSearch;
+$('#searchInput').addEventListener('input', e => paintSamples(e.target.value));
+$('#searchInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeSearch(); });
+
+/* ── 말풍선 없는 대화 줄 ────────────────────────── */
+function turn(role, text) {
+  $('#empty')?.remove();
+  const wrap = document.createElement('div');
+  wrap.className = 'turn ' + role;
+
+  const who = document.createElement('div');
+  who.className = 'who';
+  const av = document.createElement('span');
+  av.className = 'av ' + (role === 'user' ? 'me' : 'ai');
+  if (role === 'user') av.textContent = $('#user').value.replace('user', 'U');
+  else av.appendChild(icon('spark'));
+  who.appendChild(av);
+
+  const name = document.createElement('span');
+  name.className = 'name';
+  who.appendChild(name);
+  wrap.appendChild(who);
+
+  if (role === 'user') {
+    // 질문은 이름 자리에 그대로 쓴다 — 한 줄짜리 발화에 본문 블록까지 두면 여백만 늘어난다
+    name.textContent = text;
+  } else {
+    name.textContent = 'SKALA HelpDesk AI';
+    const body = document.createElement('div');
+    body.className = 'text';
+    render(body, text);
+    wrap.appendChild(body);
+  }
+
+  thread.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+  return wrap;
+}
+
+function chips(wrap, data, ms) {
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const add = (cls, iconId, text) => {
+    const c = document.createElement('span');
+    c.className = 'chip ' + cls;
+    if (iconId) c.appendChild(icon(iconId));
+    const t = document.createElement('span');
+    t.textContent = text;
+    c.appendChild(t);
+    meta.appendChild(c);
+    return c;
+  };
+
+  (data.sources || []).forEach(src => {
+    const chip = add('src', 'file', src.document);
+    chip.title = '클릭하면 실제 근거 원문을 볼 수 있습니다';
+    chip.onclick = () => toggleEvidence(wrap, chip, src);
+  });
+  if (data.toolUsed) add('tool', 'bolt', '도구 호출');
+  if (data.blocked) add('blocked', 'shield', '차단: ' + data.blocked);
+  if (ms != null) add('', null, ms + 'ms');
+
+  if (meta.children.length) { wrap.appendChild(meta); log.scrollTop = log.scrollHeight; }
+}
+
+/**
+ * 근거 패널 — 출처 칩을 누르면 검색된 청크 원문을 펼치고,
+ * 답변과 실제로 겹치는 문장을 <mark> 로 강조한다.
+ */
+function toggleEvidence(wrap, chip, src) {
+  const existing = wrap.querySelector('.evidence');
+  const sameChip = chip.classList.contains('open');
+
+  wrap.querySelectorAll('.chip.src').forEach(c => c.classList.remove('open'));
+  if (existing) existing.remove();
+  if (sameChip) return;                       // 같은 칩을 다시 누르면 닫기
+
+  chip.classList.add('open');
+
+  const panel = document.createElement('div');
+  panel.className = 'evidence';
+
+  const head = document.createElement('div');
+  head.className = 'head';
+  head.appendChild(icon('file'));
+  const marks = (src.highlights || []).length;
+  const label = document.createElement('span');
+  label.textContent = src.document + '  ·  버전 ' + src.version
+    + (marks ? '  ·  근거 문장 ' + marks + '개 강조' : '  ·  강조할 근거 문장 없음');
+  head.appendChild(label);
+  panel.appendChild(head);
+
+  const body = document.createElement('div');
+  body.className = 'body';
+  const text = src.text || '';
+  body.innerHTML = text
+    ? markEvidence(text, src.highlights || [])
+    : '<span class="none">청크 원문이 응답에 포함되지 않았습니다.</span>';
+  panel.appendChild(body);
+
+  wrap.appendChild(panel);
+  log.scrollTop = log.scrollHeight;
+}
+
+/** 청크 원문을 이스케이프한 뒤, 근거 문장만 <mark> 로 감싼다. */
+function markEvidence(text, highlights) {
+  let html = esc(text);
+  // 긴 문장부터 치환해야 짧은 문장이 긴 문장 안을 먼저 쪼개지 않는다
+  [...highlights].sort((a, b) => b.length - a.length).forEach(h => {
+    const target = esc(h.trim());
+    if (target.length < 8) return;
+    const idx = html.indexOf(target);
+    if (idx < 0) return;
+    html = html.slice(0, idx) + '<mark>' + target + '</mark>' + html.slice(idx + target.length);
+  });
+  return html;
+}
+
+function busy() {
+  const wrap = turn('ai', '');
+  wrap.querySelector('.text').innerHTML =
+    '<span class="dots"><span></span><span></span><span></span></span>';
+  return wrap;
+}
+
+/* ─────────────────────────────────────────────────────────
+   오른쪽 상태 레일
+
+   상태를 모델에게 물어보지 않고 직접 읽는다(/api/me/state).
+   모델을 거치면 토큰·지연이 들고, 무엇보다 요약된 값이 온다.
+   화면 옆에 늘 떠 있어야 하는 값은 원본이어야 한다.
+   ───────────────────────────────────────────────────────── */
+
+/** 직전 상태의 지문 — 무엇이 바뀌었는지 알아야 그 줄만 강조할 수 있다. */
+let stateSig = { orders: new Map(), tickets: new Map() };
+let firstStateLoad = true;
+
+const ORDER_CLASS = { '배송중':'moving', '배송완료':'done', '상품준비중':'prep', '결제완료':'prep' };
+
+function stateRow(id, title, state, stateClass, sub, changed) {
+  return '<div class="row' + (changed ? ' changed' : '') + '" data-key="' + esc(id) + '">'
+    + '<div class="top"><span class="id">' + esc(title) + '</span>'
+    + (changed ? '<span class="badge-new">방금 변경</span>' : '')
+    + '<span class="state ' + stateClass + '">' + esc(state) + '</span></div>'
+    + '<div class="sub">' + sub + '</div></div>';
+}
+
+async function refreshState() {
+  let data;
+  try {
+    data = await (await fetch('/api/me/state', { headers: headers() })).json();
+  } catch (e) { return; }
+
+  // ── 주문
+  const nextOrders = new Map();
+  const orderHtml = (data.orders || []).map(o => {
+    const sig = o.status + '|' + o.eta;
+    nextOrders.set(o.id, sig);
+    const changed = !firstStateLoad && stateSig.orders.get(o.id) !== sig;
+    return stateRow(o.id, '주문 ' + o.id, o.status, ORDER_CLASS[o.status] || '',
+      esc(o.item) + ' · 도착예정 ' + esc(o.eta), changed);
+  }).join('');
+  $('#orderList').innerHTML = orderHtml || '<div class="none">주문 내역이 없습니다.</div>';
+  $('#orderCount').textContent = (data.orders || []).length + '건';
+
+  // ── 신청(티켓)
+  const nextTickets = new Map();
+  const ticketHtml = (data.tickets || []).map(t => {
+    const sig = t.status;
+    nextTickets.set(t.no, sig);
+    // 새로 생긴 티켓도 '바뀐 것'이다 — 대화로 방금 접수됐다는 뜻이라 가장 강조할 값이다
+    const changed = !firstStateLoad && stateSig.tickets.get(t.no) !== sig;
+    const label = t.type === 'REFUND' ? '환불' : '교환';
+    const state = t.status === 'PENDING_APPROVAL' ? '승인 대기' : t.status;
+    return stateRow(t.no, t.no + ' · ' + label, state, 'pending',
+      '주문 ' + esc(t.orderId) + ' · ' + esc(t.reason) + '<br>'
+      + esc(t.createdAt.replace('T', ' ').slice(0, 16)), changed);
+  }).join('');
+  $('#ticketList').innerHTML = ticketHtml
+    || '<div class="none">접수된 신청이 없습니다.<br>대화로 교환·환불을 요청하면 여기에 나타납니다.</div>';
+  $('#ticketCount').textContent = (data.tickets || []).length + '건';
+
+  stateSig = { orders: nextOrders, tickets: nextTickets };
+  firstStateLoad = false;
+
+  // 바뀐 줄이 접혀 있으면 강조해도 보이지 않는다 — 보이는 곳까지 끌어온다
+  document.querySelector('.row.changed')
+    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* ─────────────────────────────────────────────────────────
+   문서 선택 인제스트
+
+   체크 상태가 곧 색인의 상태가 된다. 뺀 문서는 색인에서도 빠지므로
+   "이 문서를 빼면 답이 어떻게 달라지나"를 화면에서 바로 실험할 수 있다.
+   ───────────────────────────────────────────────────────── */
+
+async function loadDocs() {
+  let docs;
+  try {
+    docs = await (await fetch('/api/admin/docs')).json();
+  } catch (e) {
+    $('#docList').innerHTML = '<div class="none">문서 목록을 불러오지 못했습니다.</div>';
+    return;
+  }
+  if (!docs.length) {
+    $('#docList').innerHTML = '<div class="none">docs 폴더에 문서가 없습니다.</div>';
+    $('#docCount').textContent = '0건';
+    return;
+  }
+
+  $('#docList').innerHTML = docs.map(d => {
+    const on = d.chunks > 0;
+    return '<label class="doc' + (on ? ' on' : '') + '">'
+      + '<input type="checkbox" value="' + esc(d.source) + '"' + (on ? ' checked' : '') + '>'
+      + '<span class="name">' + esc(d.source) + '</span>'
+      + '<span class="n">' + (on ? d.chunks + ' 청크' : Math.round(d.bytes / 1024) + ' KB') + '</span>'
+      + '</label>';
+  }).join('');
+
+  const indexed = docs.filter(d => d.chunks > 0);
+  const chunks = indexed.reduce((a, d) => a + d.chunks, 0);
+  $('#docCount').textContent = indexed.length
+    ? indexed.length + '/' + docs.length + '건 · ' + chunks + ' 청크'
+    : docs.length + '건 · 미적재';
+}
+
+function selectedDocs() {
+  return [...document.querySelectorAll('#docList input:checked')].map(i => i.value);
+}
+
+$('#ingest').onclick = async () => {
+  const btn = $('#ingest');
+  const picked = selectedDocs();
+  btn.disabled = true; btn.textContent = '주입 중…';
+  try {
+    // sources 를 반복 파라미터로 넘긴다. 아무것도 안 고르면 색인을 비운다.
+    // selective=true 가 반드시 필요하다 — 빈 목록은 쿼리스트링에서 통째로 사라지므로,
+    // 이 플래그가 없으면 서버가 "파라미터 미지정 = 전부 주입"으로 해석해 정반대로 동작한다.
+    const qs = new URLSearchParams();
+    picked.forEach(s => qs.append('sources', s));
+    qs.append('selective', 'true');
+    qs.append('docType', 'policy'); qs.append('dept', 'CS');
+
+    const data = await (await fetch('/api/admin/ingest?' + qs, { method: 'POST' })).json();
+    const total = data.reduce((a, d) => a + d.chunks, 0);
+    turn('ai', picked.length
+      ? '문서 ' + data.length + '건 · 청크 ' + total + '개가 색인에 있습니다.\n'
+        + data.map(d => '· ' + d.source + ' (' + d.chunks + ')').join('\n')
+      : '색인을 비웠습니다. 이제 규정 질문에는 답할 근거가 없습니다.');
+  } catch (e) {
+    turn('ai', '인제스트 실패: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '선택 주입';
+    loadDocs();
+  }
+};
+
+$('#selAll').onclick = () =>
+  document.querySelectorAll('#docList input').forEach(i => i.checked = true);
+$('#selNone').onclick = () =>
+  document.querySelectorAll('#docList input').forEach(i => i.checked = false);
+
+/* ── 대화 전송 ──────────────────────────────────── */
+
+let inFlight = false;
+const streaming = () => $('#stream').getAttribute('aria-pressed') === 'true';
+
+async function send(text) {
+  // 중복 전송 방지 — IME 가드를 뚫고 들어오는 경우까지 여기서 막는다
+  if (inFlight || !text.trim()) return;
+  inFlight = true;
+  turn('user', text);
+  $('#q').value = ''; $('#q').style.height = 'auto';
+  $('#send').disabled = true;
+
+  const body = JSON.stringify({ question: text, sessionId: $('#session').value });
+  const started = performance.now();
+  const pending = busy();
+
+  try {
+    if (streaming()) {
+      await streamAnswer(body, pending, started);
+    } else {
+      const res = await fetch('/api/chat', { method: 'POST', headers: headers(), body });
+      const data = await res.json();
+      render(pending.querySelector('.text'),
+        data.answer || ('[' + res.status + '] ' + (data.message || '응답 없음')));
+      chips(pending, data, Math.round(performance.now() - started));
+    }
+  } catch (e) {
+    pending.querySelector('.text').textContent = '요청 실패: ' + e.message;
+  } finally {
+    inFlight = false;
+    $('#send').disabled = false; $('#q').focus();
+    // 대화가 상태를 바꿨을 수 있다(티켓 접수 등) — 매 턴 끝에 다시 읽는다.
+    // 도구를 썼는지 따지지 않는 것은 의도적이다. 판정이 틀리면 화면이 조용히 낡는다.
+    refreshState();
+  }
+}
+
+/**
+ * SSE 파싱 — 규격대로 이벤트 블록 단위로 끊어 읽는다.
+ * data 값에 trim() 을 걸면 " 반품은" 같은 토큰의 앞 공백이 날아가 답변이 붙어서 나온다.
+ */
+async function streamAnswer(body, wrap, started) {
+  const res = await fetch('/api/chat/stream', { method: 'POST', headers: headers(), body });
+  const el = wrap.querySelector('.text');
+  if (!res.ok || !res.body) {
+    // 서버가 주는 안내 문구를 쓴다. 본문을 통째로 뿌리면 화면에 JSON 이 그대로 남는다.
+    const raw = await res.text();
+    let msg = raw;
+    try { msg = JSON.parse(raw).message || raw; } catch (_) {}
+    el.textContent = '[' + res.status + '] ' + msg;
+    return;
+  }
+  el.textContent = '';
+
+  let answer = '', sources = [];
+
+  const onEvent = (name, data) => {
+    if (name === 'sources') {
+      try { sources = JSON.parse(data); } catch (_) {}
+      return;
+    }
+    let piece = data;
+    try { piece = JSON.parse(data).t ?? ''; } catch (_) {}   // 구버전 호환
+    if (!piece) return;
+    answer += piece;
+    render(el, answer);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '', eventName = '', dataLines = [];
+
+  const flush = () => {
+    if (dataLines.length) onEvent(eventName || 'message', dataLines.join('\n'));
+    eventName = ''; dataLines = [];
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+
+    let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      let line = buf.slice(0, nl);
+      buf = buf.slice(nl + 1);
+      if (line.endsWith('\r')) line = line.slice(0, -1);
+
+      if (line === '') { flush(); continue; }   // 빈 줄 = 이벤트 끝
+      if (line.startsWith(':')) continue;       // 주석
+
+      const colon = line.indexOf(':');
+      const field = colon < 0 ? line : line.slice(0, colon);
+      let val = colon < 0 ? '' : line.slice(colon + 1);
+      if (val.startsWith(' ')) val = val.slice(1);   // 규격: 선행 공백 하나만 제거
+
+      if (field === 'event') eventName = val;
+      else if (field === 'data') dataLines.push(val);
+    }
+  }
+  flush();
+
+  if (!answer) el.textContent = '(빈 응답)';
+  chips(wrap, { sources }, Math.round(performance.now() - started));
+}
+
+/* ── 입력 ───────────────────────────────────────── */
+$('#send').onclick = () => send($('#q').value);
+$('#q').addEventListener('keydown', e => {
+  // 한글 IME 가드 — 조합 확정 Enter 와 전송 Enter 가 모두 keydown 을 발생시킨다.
+  // 막지 않으면 Enter 한 번에 두 번 전송된다. keyCode 229 는 구형 브라우저 대비.
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send($('#q').value); }
+});
+$('#q').addEventListener('input', e => {
+  e.target.style.height = 'auto';
+  e.target.style.height = Math.min(e.target.scrollHeight, 110) + 'px';
+});
+
+$('#stream').onclick = e => {
+  const btn = e.currentTarget;
+  const on = btn.getAttribute('aria-pressed') === 'true';
+  btn.setAttribute('aria-pressed', String(!on));
+};
+
+// 사용자를 바꾸면 보고 있는 상태도 그 사람 것이어야 한다 — 권한 격리는 화면에서도 지켜진다
+$('#user').onchange = () => {
+  $('#userAv').textContent = $('#user').value.replace('user', 'U');
+  firstStateLoad = true;
+  refreshState();
+};
+
+$('#clearLog').onclick = () => { thread.innerHTML = ''; };
+
+$('#reset').onclick = () => {
+  thread.innerHTML = '';
+  document.querySelectorAll('.conv').forEach(c => c.classList.remove('active'));
+  $('#session').value = 'web-' + Math.random().toString(36).slice(2, 6);
+  turn('ai', '새 세션(' + $('#session').value + ')을 시작했습니다. 앞 대화 맥락은 초기화됩니다.');
+};
+
+paintSamples();
+loadDocs();
+refreshState();
+$('#q').focus();
+</script>
+</body>
+</html>
