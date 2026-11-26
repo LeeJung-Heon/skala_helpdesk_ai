@@ -131,6 +131,8 @@ curl localhost:8080/api/me/state -H 'X-User-Id: user1'
 
 ## Advisor 체인 순서 — 순서가 곧 정책이다
 
+![Advisor 체인 실행 순서 및 도구 권한 통제](docs/diagrams/advisor-chain.png)
+
 ```
 0    SafeGuard   민감어 차단
 100  Audit       감사 로깅
@@ -182,6 +184,8 @@ curl localhost:8080/api/me/state -H 'X-User-Id: user1'
 부를 때만 오고, 요약된 값이 온다. 화면에 늘 떠 있어야 하는 값은 원본이어야 한다.
 
 ## 하이브리드 검색
+
+![한국어 하이브리드 검색 및 근거 문장 추출 구조](docs/diagrams/hybrid-search.png)
 
 임베딩은 **의미**가 가까운 것을 찾아서, 식별자("12345")와 어휘 중복이 없는 짧은 질의에 약하다.
 실측에서 "배송 조회는 어디에서 하나요?" 가 유사도 0.30 으로 임계값 아래였다 — 검색 0건.
